@@ -12,8 +12,8 @@ group_members = Table(
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), index=True)
-    email = Column(String(50), unique=True, index=True)
+    name = Column(String, index=True)
+    email = Column(String, unique=True, index=True)
     password = Column(String)
 
     groups = relationship("Group", secondary=group_members, back_populates="members")
@@ -38,6 +38,7 @@ class Group(Base):
 class Message(Base):
     __tablename__ = 'messages'
     id = Column(Integer, primary_key=True, index=True)
+    text = Column(String, index=True)
     chat_id = Column(Integer, ForeignKey('chats.id'))
     sender_id = Column(Integer, ForeignKey('users.id'))
     timestamp = Column(DateTime(timezone=True),  index=True)
