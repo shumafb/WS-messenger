@@ -25,6 +25,11 @@ services:
       - db
     environment:
       - DATABASE_URL=postgresql://admin:admin@db:5432/messanger_db
+    command: >
+      sh -c "until alembic upgrade head; do
+        echo '⏳Ждем запуска БД...';
+        sleep 2;
+      done && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 volumes:
   postgres_data:
     driver: local

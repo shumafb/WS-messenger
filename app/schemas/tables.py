@@ -6,18 +6,23 @@ class ChatType(str, Enum):
     PRIVATE = 'private'
     GROUP = 'group'
 
-class UserBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=50)
+class UserEmail(BaseModel):
     email: EmailStr
 
+class UserBase(UserEmail):
+    name: str = Field(..., min_length=1, max_length=50)
+
 class UserCreate(UserBase):
+    password: str = Field(..., min_length=8, max_length=64)
+
+class UserLogin(UserEmail):
     password: str = Field(..., min_length=8, max_length=64)
 
 class User(UserBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ChatBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
@@ -30,7 +35,7 @@ class Chat(ChatBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class GroupBase(ChatBase):
     name: str = Field(..., min_length=1, max_length=50)
@@ -44,7 +49,7 @@ class Group(GroupBase):
     members: list[User] = Field(default_factory=list)
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class MessageBase(BaseModel):
@@ -61,4 +66,4 @@ class Message(MessageBase):
     is_read: bool = Field(default=False)
 
     class Config:
-        orm_mode = True
+        from_attributes = True
