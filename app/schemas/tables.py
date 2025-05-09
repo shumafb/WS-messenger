@@ -2,21 +2,27 @@ from pydantic import BaseModel, Field, EmailStr
 from datetime import datetime, timezone
 from enum import Enum
 
+
 class ChatType(str, Enum):
-    PRIVATE = 'private'
-    GROUP = 'group'
+    PRIVATE = "private"
+    GROUP = "group"
+
 
 class UserEmail(BaseModel):
     email: EmailStr
 
+
 class UserBase(UserEmail):
     name: str = Field(..., min_length=1, max_length=50)
+
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=64)
 
+
 class UserLogin(UserEmail):
     password: str = Field(..., min_length=8, max_length=64)
+
 
 class User(UserBase):
     id: int
@@ -24,12 +30,15 @@ class User(UserBase):
     class Config:
         from_attributes = True
 
+
 class ChatBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     chat_type: ChatType = Field(default=ChatType.PRIVATE)
 
+
 class ChatCreate(ChatBase):
     pass
+
 
 class Chat(ChatBase):
     id: int
@@ -37,12 +46,15 @@ class Chat(ChatBase):
     class Config:
         from_attributes = True
 
+
 class GroupBase(ChatBase):
     name: str = Field(..., min_length=1, max_length=50)
     creator_id: int
 
+
 class GroupCreate(GroupBase):
     pass
+
 
 class Group(GroupBase):
     id: int
@@ -53,12 +65,14 @@ class Group(GroupBase):
 
 
 class MessageBase(BaseModel):
-    text: str = Field(...,  min_length=1, max_length=500)
+    text: str = Field(..., min_length=1, max_length=500)
     chat_id: int
     sender_id: int
 
+
 class MessageCreate(MessageBase):
     pass
+
 
 class Message(MessageBase):
     id: int

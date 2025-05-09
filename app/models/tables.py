@@ -1,46 +1,64 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Table, Enum
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    ForeignKey,
+    Boolean,
+    Table,
+    Enum,
+)
 from sqlalchemy.orm import relationship
 from app.db import Base
 
 
 group_members = Table(
-    'group_members', Base.metadata,
-    Column('group_id', ForeignKey('groups.id'), primary_key=True),
-    Column('user_id', ForeignKey('users.id'), primary_key=True),
+    "group_members",
+    Base.metadata,
+    Column("group_id", ForeignKey("groups.id"), primary_key=True),
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
 )
 
+
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
     email = Column(String, unique=True)
     password = Column(String)
 
     groups = relationship("Group", secondary=group_members, back_populates="members")
-    messages = relationship("Message", back_populates="sender", cascade="all, delete-orphan")
+    messages = relationship(
+        "Message", back_populates="sender", cascade="all, delete-orphan"
+    )
+
 
 class Chat(Base):
-    __tablename__ = 'chats'
+    __tablename__ = "chats"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-    chat_type = Column(Enum('private', 'group', name='chat_type'), default='private')
+    chat_type = Column(Enum("private", "group", name="chat_type"), default="private")
 
-    messages = relationship("Message", back_populates="chat", cascade="all, delete-orphan")
+    messages = relationship(
+        "Message", back_populates="chat", cascade="all, delete-orphan"
+    )
+
 
 class Group(Base):
-    __tablename__ = 'groups'
+    __tablename__ = "groups"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-    creator_id = Column(Integer, ForeignKey('users.id'))
+    creator_id = Column(Integer, ForeignKey("users.id"))
 
     members = relationship("User", secondary=group_members, back_populates="groups")
 
+
 class Message(Base):
-    __tablename__ = 'messages'
+    __tablename__ = "messages"
     id = Column(Integer, primary_key=True, index=True)
     text = Column(String)
-    chat_id = Column(Integer, ForeignKey('chats.id'))
-    sender_id = Column(Integer, ForeignKey('users.id'))
+    chat_id = Column(Integer, ForeignKey("chats.id"))
+    sender_id = Column(Integer, ForeignKey("users.id"))
     timestamp = Column(DateTime(timezone=True))
     is_read = Column(Boolean, default=False)
 
