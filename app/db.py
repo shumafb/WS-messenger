@@ -1,7 +1,9 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base
 import os
+
 from dotenv import load_dotenv
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
+from fastapi.websockets import WebSocketDisconnect
 
 load_dotenv()
 
@@ -24,3 +26,18 @@ Base = declarative_base()
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
+
+
+async def get_current_user_ws(token: str, session: AsyncSession):
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("user_id")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Неверный токен")
+    except Exception:
+        raise WebSocketDisconnect(code=1008)
+
+    user = await session.get(User, user_id)
+    if not user:
+        raise WebSocketDisconnect(code=1008)
+    return user

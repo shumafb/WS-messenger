@@ -1,16 +1,16 @@
 from sqlalchemy import (
+    Boolean,
     Column,
+    DateTime,
+    Enum,
+    ForeignKey,
     Integer,
     String,
-    DateTime,
-    ForeignKey,
-    Boolean,
     Table,
-    Enum,
 )
 from sqlalchemy.orm import relationship
-from app.db import Base
 
+from app.db import Base
 
 group_members = Table(
     "group_members",
@@ -60,6 +60,7 @@ class Message(Base):
     chat_id = Column(Integer, ForeignKey("chats.id"))
     sender_id = Column(Integer, ForeignKey("users.id"))
     timestamp = Column(DateTime(timezone=True))
+    client_message_id = Column(String, unique=True, nullable=False, index=True)
     is_read = Column(Boolean, default=False)
 
     sender = relationship("User", back_populates="messages")

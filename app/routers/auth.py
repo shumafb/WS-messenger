@@ -1,16 +1,16 @@
-from fastapi import Depends, APIRouter, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from passlib.context import CryptContext
-from fastapi.security import OAuth2PasswordBearer
 from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from passlib.context import CryptContext
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_db
 from ..models.tables import User as ORMUser
-from ..schemas.tables import UserCreate, User
-from ..schemas.auth import TokenResponse, LoginRequest
+from ..schemas.auth import LoginRequest, TokenResponse
+from ..schemas.tables import User, UserCreate
 from ..utils.jwt import create_jwt_token, verify_jwt_token
-
 
 router = APIRouter(
     tags=["auth"],
