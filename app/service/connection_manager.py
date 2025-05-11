@@ -1,8 +1,7 @@
 import asyncio
-from typing import List, Optional
 from typing import Dict, List
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 
 
 class ConnectionManager:
@@ -20,7 +19,6 @@ class ConnectionManager:
             self.user_connections.setdefault(user_id, []).append(websocket)
 
     async def disconnect(self, chat_id: int, user_id: int, websocket: WebSocket):
-
         async with self._lock:
             connections = self.active_connections.get(chat_id)
             if not connections:
@@ -34,9 +32,8 @@ class ConnectionManager:
                 user_conns.remove(websocket)
                 if not user_conns:
                     self.user_connections.pop(user_id, None)
-    
-    async def broadcast(self, chat_id: int, message: dict):
 
+    async def broadcast(self, chat_id: int, message: dict):
         connections = self.active_connections.get(chat_id, [])
         for connection in connections:
             await connection.send_json(message)
@@ -47,5 +44,6 @@ class ConnectionManager:
     async def send_personal_by_user(self, user_id: int, message: dict):
         for ws in self.user_connections.get(user_id, []):
             await ws.send_json(message)
+
 
 manager = ConnectionManager()

@@ -3,7 +3,12 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from dotenv import load_dotenv
+from fastapi import HTTPException
+from fastapi.websockets import WebSocketDisconnect
 from jose import JWTError, jwt
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.tables import User
 
 load_dotenv()
 
@@ -28,3 +33,18 @@ def verify_jwt_token(token: str) -> Optional[dict]:
         return payload
     except JWTError:
         return None
+
+
+async def get_current_user_ws(token: str, session: AsyncSession):
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("user_id")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Неверный токен")
+    except jwt.PyJWTError:
+        raise WebSocketDisconnect(code=1008)
+
+    user = await session.get(User, user_id)
+    if not user:
+        raise WebSocketDisconnect(code=1008)
+    return user

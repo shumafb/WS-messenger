@@ -82,3 +82,15 @@ class Message(MessageBase):
 
     class Config:
         from_attributes = True
+
+
+class MessageResponse(BaseModel):
+    message_id: int
+    sender_id: int
+    text: str
+    timestamp: str
+    is_read: bool
+    client_message_id: str | None
+
+    class Config:
+        from_attributes = True
