@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -66,31 +67,19 @@ class Group(GroupBase):
 
 
 class MessageBase(BaseModel):
-    text: str = Field(..., min_length=1, max_length=500)
+    text: str
     chat_id: int
-    sender_id: int
+    client_message_id: Optional[str] = None
 
 
 class MessageCreate(MessageBase):
-    pass
+    sender_id: int
 
 
 class Message(MessageBase):
     id: int
-    timestamp: datetime = Field(default_factory=datetime.now(timezone.utc))
-    is_read: bool = Field(default=False)
-
-    class Config:
-        from_attributes = True
-
-
-class MessageResponse(BaseModel):
-    message_id: int
     sender_id: int
-    text: str
-    timestamp: str
-    is_read: bool
-    client_message_id: str | None
+    created_at: datetime
 
     class Config:
         from_attributes = True

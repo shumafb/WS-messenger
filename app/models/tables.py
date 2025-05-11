@@ -9,6 +9,7 @@ from sqlalchemy import (
     Table,
 )
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 from app.db import Base
 
@@ -56,12 +57,13 @@ class Group(Base):
 class Message(Base):
     __tablename__ = "messages"
     id = Column(Integer, primary_key=True, index=True)
-    text = Column(String)
-    chat_id = Column(Integer, ForeignKey("chats.id"))
-    sender_id = Column(Integer, ForeignKey("users.id"))
+    text = Column(String, nullable=False)
+    chat_id = Column(Integer, ForeignKey("chats.id"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     timestamp = Column(DateTime(timezone=True))
-    client_message_id = Column(String, unique=True, nullable=False, index=True)
+    client_message_id = Column(String, unique=True, nullable=True, index=True)
     is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     sender = relationship("User", back_populates="messages")
     chat = relationship("Chat", back_populates="messages")

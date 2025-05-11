@@ -92,6 +92,7 @@ async def login_user(user: LoginRequest, db: AsyncSession = Depends(get_db)):
     user = await check_login(user.email, user.password, db)
     token_payload = {
         "sub": user.email,
+        "user_id": user.id,
         "exp": datetime.utcnow() + timedelta(minutes=30),
     }
     token = create_jwt_token(token_payload)
