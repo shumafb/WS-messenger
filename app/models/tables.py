@@ -13,6 +13,7 @@ from datetime import datetime
 
 from app.db import Base
 
+
 group_members = Table(
     "group_members",
     Base.metadata,

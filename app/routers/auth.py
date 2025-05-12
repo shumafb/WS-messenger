@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db import get_db
+from ..db import get_async_session
 from ..models.tables import User as ORMUser
 from ..schemas.auth import LoginRequest, TokenResponse
 from ..schemas.tables import User, UserCreate
@@ -38,7 +38,7 @@ async def check_login(email, password, db):
 
 
 async def get_current_user_from_token(
-    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
+    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_async_session)
 ) -> ORMUser:
     payload = verify_jwt_token(token)
     if not payload:
@@ -64,7 +64,7 @@ async def get_current_user_from_token(
     summary="Регистрация нового пользователя",
     description="Регистрация нового пользователя с хешированием пароля",
 )
-async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
+async def register_user(user: UserCreate, db: AsyncSession = Depends(get_async_session)):
     stmt = select(ORMUser).where(ORMUser.email == user.email)
     result = await db.execute(stmt)
     existing_user = result.scalar_one_or_none()
@@ -88,7 +88,7 @@ async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     summary="Авторизация пользователя",
     description="Авторизация пользователя с проверкой пароля",
 )
-async def login_user(user: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login_user(user: LoginRequest, db: AsyncSession = Depends(get_async_session)):
     user = await check_login(user.email, user.password, db)
     token_payload = {
         "sub": user.email,
