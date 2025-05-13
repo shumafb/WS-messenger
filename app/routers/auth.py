@@ -64,7 +64,9 @@ async def get_current_user_from_token(
     summary="Регистрация нового пользователя",
     description="Регистрация нового пользователя с хешированием пароля",
 )
-async def register_user(user: UserCreate, db: AsyncSession = Depends(get_async_session)):
+async def register_user(
+    user: UserCreate, db: AsyncSession = Depends(get_async_session)
+):
     stmt = select(ORMUser).where(ORMUser.email == user.email)
     result = await db.execute(stmt)
     existing_user = result.scalar_one_or_none()

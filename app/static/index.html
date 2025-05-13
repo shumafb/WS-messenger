@@ -1,909 +1,314 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Мессенджер</title>
+  <meta charset="UTF-8">
+  <title>Chat App</title>
   <style>
-    * {
-      box-sizing: border-box;
+    html, body { margin:0; padding:0; height:100%; font-family: sans-serif; }
+    #app { display:flex; height:100vh; }
+    #sidebar {
+      width: 300px;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+    }
+    #sidebar header {
+      padding: 10px;
+      border-bottom: 1px solid #ccc;
+    }
+    #chat-list {
+      flex: 1;
+      list-style: none;
       margin: 0;
       padding: 0;
-    }
-    
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f5f5f5;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .container {
-      display: flex;
-      height: 100%;
-      flex: 1;
-    }
-    
-    /* Auth forms */
-    .auth-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-    
-    .auth-box {
-      background-color: white;
-      padding: 30px;
-      border-radius: 8px;
-      width: 400px;
-      max-width: 90%;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-    
-    .auth-title {
-      margin-bottom: 20px;
-      color: #333;
-      text-align: center;
-    }
-    
-    .form-group {
-      margin-bottom: 15px;
-    }
-    
-    .form-group label {
-      display: block;
-      margin-bottom: 5px;
-      color: #555;
-    }
-    
-    .form-control {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 16px;
-    }
-    
-    .btn {
-      padding: 10px 15px;
-      border: none;
-      border-radius: 4px;
-      background-color: #4a76a8;
-      color: white;
-      cursor: pointer;
-      font-size: 16px;
-      transition: background-color 0.2s;
-    }
-    
-    .btn:hover {
-      background-color: #3d6293;
-    }
-    
-    .text-center {
-      text-align: center;
-    }
-    
-    .mt-3 {
-      margin-top: 15px;
-    }
-    
-    .auth-switch {
-      color: #4a76a8;
-      cursor: pointer;
-      text-decoration: underline;
-    }
-    
-    /* Chat sidebar */
-    .sidebar {
-      width: 300px;
-      background-color: #fff;
-      border-right: 1px solid #ddd;
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .sidebar-header {
-      padding: 15px;
-      border-bottom: 1px solid #ddd;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .user-info {
-      font-weight: bold;
-      font-size: 16px;
-      color: #333;
-      flex: 1;
-    }
-    
-    .logout-btn {
-      background: none;
-      border: none;
-      color: #f44336;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
-    .new-chat-btn {
-      padding: 10px 15px;
-      margin: 15px;
-      background-color: #4a76a8;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .chats-list {
-      flex: 1;
       overflow-y: auto;
     }
-    
-    .chat-item {
-      padding: 15px;
+    #chat-list li {
+      padding: 8px 10px;
+      cursor: pointer;
       border-bottom: 1px solid #eee;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
-    
-    .chat-item:hover {
-      background-color: #f5f5f5;
+    #chat-list li:hover { background: #f5f5f5; }
+    #sidebar footer {
+      padding: 10px;
+      border-top: 1px solid #ccc;
     }
-    
-    .chat-item.active {
-      background-color: #e3f2fd;
-    }
-    
-    .chat-name {
-      font-weight: 500;
-      color: #333;
-      flex: 1;
-    }
-    
-    .leave-chat {
-      color: #f44336;
-      cursor: pointer;
-      font-size: 18px;
-      margin-left: 10px;
-    }
-    
-    /* Chat main */
-    .chat-main {
+    #chat-window {
       flex: 1;
       display: flex;
       flex-direction: column;
     }
-    
-    .chat-header {
-      padding: 15px;
-      border-bottom: 1px solid #ddd;
-      display: flex;
-      align-items: center;
-      background-color: #fff;
-      justify-content: space-between;
+    #chat-window header {
+      padding: 10px;
+      border-bottom: 1px solid #ccc;
     }
-    
-    .current-chat-name {
-      font-weight: bold;
-      font-size: 18px;
-      color: #333;
-    }
-
-    .chat-messages {
+    #messages {
       flex: 1;
-      padding: 15px;
+      padding: 10px;
       overflow-y: auto;
-      background-color: #f5f5f5;
+      background: #fafafa;
     }
-    
-    .message {
-      margin-bottom: 15px;
-      max-width: 70%;
+    #message-form {
+      display: flex;
       padding: 10px;
-      border-radius: 8px;
-      position: relative;
-      word-wrap: break-word;
-      display: flex;
-      flex-direction: column;
+      border-top: 1px solid #ccc;
     }
-    
-    .message.incoming {
-      background-color: #fff;
-      align-self: flex-start;
-      border-top-left-radius: 0;
-      margin-right: auto;
-    }
-    
-    .message.outgoing {
-      background-color: #e3f2fd;
-      align-self: flex-end;
-      border-top-right-radius: 0;
-      margin-left: auto;
-    }
-    
-    .message.pending {
-      opacity: 0.6;
-    }
-    
-    .message.read .message-text::after {
-      content: ' ✓✓';
-      color: #4a76a8;
-      margin-left: 5px;
-      font-size: 12px;
-    }
-    
-    .message-sender {
-      font-size: 12px;
-      color: #666;
-      margin-bottom: 4px;
-    }
-    
-    .message-text {
-      font-size: 14px;
-      color: #333;
-    }
-    
-    .message-time {
-      font-size: 11px;
-      color: #999;
-      text-align: right;
-      margin-top: 4px;
-    }
-    
-    .chat-form {
-      padding: 15px;
-      border-top: 1px solid #ddd;
-      display: flex;
-      background-color: #fff;
-    }
-    
-    .chat-input {
+    #message-form input {
       flex: 1;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
+      padding: 8px;
       margin-right: 10px;
     }
-    
-    .send-btn {
-      padding: 10px 15px;
-      background-color: #4a76a8;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
+    #message-form button {
+      padding: 8px 16px;
     }
-    
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.6);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-    
-    .modal.show {
-      display: flex;
-    }
-    
-    .modal-content {
-      background-color: white;
-      padding: 20px;
-      border-radius: 8px;
-      width: 400px;
-      max-width: 90%;
-    }
-    
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-    }
-    
-    .modal-title {
-      font-size: 18px;
-      font-weight: bold;
-    }
-    
-    .modal-close {
-      background: none;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
-    }
-    
-    .checkbox-group {
-      display: flex;
-      align-items: center;
-      margin: 10px 0;
-    }
-    
-    .checkbox-group label {
-      margin-left: 10px;
-      margin-bottom: 0;
-    }
-    
-    .user-select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      margin-bottom: 15px;
-    }
-    
-    .welcome-message {
+    /* Форма входа/регистрации */
+    #login-form {
+      position: absolute;
+      top:0; left:0; right:0; bottom:0;
+      background: rgba(255,255,255,0.95);
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100%;
-      color: #999;
-      font-size: 18px;
+    }
+    #login-form form {
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+    }
+    #login-form input {
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+    #login-form button {
+      padding: 8px;
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
-  <!-- Authentication Container -->
-  <div id="auth-container" class="auth-container">
-    <div class="auth-box">
-      <div id="login-form-container">
-        <h2 class="auth-title">Вход в систему</h2>
-        <form id="login-form">
-          <div class="form-group">
-            <label for="login-email">Email</label>
-            <input type="email" id="login-email" class="form-control" required>
-          </div>
-          <div class="form-group">
-            <label for="login-password">Пароль</label>
-            <input type="password" id="login-password" class="form-control" required>
-          </div>
-          <div class="text-center">
-            <button type="submit" class="btn">Войти</button>
-          </div>
-          <div class="text-center mt-3">
-            Нет аккаунта? <span class="auth-switch" id="show-register">Регистрация</span>
-          </div>
+  <div id="app">
+    <!-- Сайдбар -->
+    <div id="sidebar">
+      <header>
+        <button id="show-create-chat-form-btn">Создать чат</button>
+        <form id="create-chat-form" style="display:none; flex-direction:column; margin-top:10px;">
+          <input type="text" id="chat-name" placeholder="Имя чата" required />
+          <input type="text" id="chat-members" placeholder="ID участников через запятую" required />
+          <label><input type="checkbox" id="chat-is-group" /> Групповой чат</label>
+          <button type="submit">Создать</button>
         </form>
-      </div>
-      <div id="register-form-container" style="display: none;">
-        <h2 class="auth-title">Регистрация</h2>
-        <form id="register-form">
-          <div class="form-group">
-            <label for="register-name">Имя</label>
-            <input type="text" id="register-name" class="form-control" required>
-          </div>
-          <div class="form-group">
-            <label for="register-email">Email</label>
-            <input type="email" id="register-email" class="form-control" required>
-          </div>
-          <div class="form-group">
-            <label for="register-password">Пароль</label>
-            <input type="password" id="register-password" class="form-control" required>
-          </div>
-          <div class="text-center">
-            <button type="submit" class="btn">Зарегистрироваться</button>
-          </div>
-          <div class="text-center mt-3">
-            Уже есть аккаунт? <span class="auth-switch" id="show-login">Войти</span>
-          </div>
-        </form>
-      </div>
+      </header>
+      <ul id="chat-list"></ul>
+      <footer>
+        <strong id="user-name" style="margin-right:10px;"></strong>
+        <button id="logout-btn">Выйти</button>
+      </footer>
     </div>
-  </div>
-
-  <!-- Main Chat Interface -->
-  <div class="container" id="chat-container" style="display: none;">
-    <!-- Sidebar -->
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <div class="user-info" id="user-name">Загрузка...</div>
-        <button class="logout-btn" id="logout-btn">Выйти</button>
-      </div>
-      <button class="new-chat-btn" id="new-chat-btn">+ Новый чат</button>
-      <div class="chats-list" id="chats-list">
-        <!-- Список чатов -->
-      </div>
+    <!-- Окно чата -->
+    <div id="chat-window">
+      <header>
+        <h2 id="chat-title">Выберите чат</h2>
+      </header>
+      <div id="messages"></div>
+      <form id="message-form">
+        <input type="text" id="message-input" placeholder="Ваше сообщение" autocomplete="off" />
+        <button type="submit">Отправить</button>
+      </form>
     </div>
-    
-    <!-- Main chat area -->
-    <div class="chat-main">
-      <div id="welcome-screen" class="welcome-message">
-        Выберите чат или создайте новый
-      </div>
-      <div id="chat-area" style="display: none; flex: 1; flex-direction: column;">
-        <div class="chat-header">
-          <div class="current-chat-name" id="current-chat-name">Загрузка...</div>
-        </div>
-        <div class="chat-messages" id="messages">
-          <!-- Сообщения -->
-        </div>
-        <form class="chat-form" id="message-form">
-          <input type="text" class="chat-input" id="message-input" placeholder="Напишите сообщение..." autocomplete="off">
-          <button type="submit" class="send-btn">Отправить</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- New Chat Modal -->
-  <div class="modal" id="new-chat-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">Создать новый чат</h3>
-        <button class="modal-close" id="close-modal">&times;</button>
-      </div>
-      <form id="new-chat-form">
-        <div class="form-group">
-          <label for="chat-name">Название чата</label>
-          <input type="text" id="chat-name" class="form-control" required>
-        </div>
-        <div class="checkbox-group">
-          <input type="checkbox" id="is-group-chat">
-          <label for="is-group-chat">Групповой чат</label>
-        </div>
-        <div class="form-group" id="user-select-container" style="display: none;">
-          <label for="user-select">Выберите пользователей</label>
-          <select multiple id="user-select" class="user-select" style="height: 150px;">
-            <!-- Загружаются пользователи -->
-          </select>
-        </div>
-        <div class="form-group" id="user-select-single">
-          <label for="user-single">Выберите пользователя</label>
-          <select id="user-single" class="form-control">
-            <!-- Загружаются пользователи -->
-          </select>
-        </div>
-        <div class="text-center">
-          <button type="submit" class="btn">Создать чат</button>
-        </div>
+    <!-- Форма входа/регистрации -->
+    <div id="login-form">
+      <form id="auth-form">
+        <input type="email" id="email" placeholder="Email" required />
+        <input type="password" id="password" placeholder="Пароль" required />
+        <button type="button" id="toggle-auth-mode">Перейти к регистрации</button>
+        <button type="submit" id="submit-auth">Войти</button>
       </form>
     </div>
   </div>
 
   <script>
-    const apiBase = window.location.origin;
-    const tokenKey = 'chat_token';
-    const userDataKey = 'chat_user_data';
+    const apiBase = ''; // если API на том же домене
+    let token = localStorage.getItem('token');
+    let ws = null;
+    let currentChatId = null;
+    let authMode = 'login'; // 'login' или 'register'
 
-    const authContainer = document.getElementById('auth-container');
-    const chatContainer = document.getElementById('chat-container');
-    const loginFormContainer = document.getElementById('login-form-container');
-    const registerFormContainer = document.getElementById('register-form-container');
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
-    const showRegisterBtn = document.getElementById('show-register');
-    const showLoginBtn = document.getElementById('show-login');
-    const userName = document.getElementById('user-name');
-    const logoutBtn = document.getElementById('logout-btn');
-    const newChatBtn = document.getElementById('new-chat-btn');
-    const chatsList = document.getElementById('chats-list');
-    const welcomeScreen = document.getElementById('welcome-screen');
-    const chatArea = document.getElementById('chat-area');
-    const currentChatName = document.getElementById('current-chat-name');
-    const messagesContainer = document.getElementById('messages');
-    const messageForm = document.getElementById('message-form');
-    const messageInput = document.getElementById('message-input');
-    const newChatModal = document.getElementById('new-chat-modal');
-    const closeModalBtn = document.getElementById('close-modal');
-    const newChatForm = document.getElementById('new-chat-form');
-    const isGroupChat = document.getElementById('is-group-chat');
-    const userSelectContainer = document.getElementById('user-select-container');
-    const userSelectSingle = document.getElementById('user-select-single');
-    const userSelect = document.getElementById('user-select');
-    const userSingle = document.getElementById('user-single');
+    async function loadUser() {
+      try {
+        const res = await fetch(apiBase + '/me', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) return;
+        const user = await res.json();
+        document.getElementById('user-name').textContent = user.name;
+      } catch (e) {
+        console.error('Failed to load user:', e);
+      }
+    }
 
-    let token = localStorage.getItem(tokenKey);
-    let userData = JSON.parse(localStorage.getItem(userDataKey) || '{}');
-    let currentUser = null;
-    let currentChat = null;
-    let chats = [];
-    let users = [];
-    let socket = null;
-    let seenClientIds = new Set();
-
-    init();
-
-    function init() {
+    document.addEventListener('DOMContentLoaded', () => {
       if (token) {
-        loadUserData()
-          .then(() => {
-            showChatInterface();
-            loadChats();
-          })
-          .catch(() => logout());
+        showApp();
+        loadUser();
+        loadChats();
       } else {
-        showAuthInterface();
+        showAuth();
       }
-      setupEventListeners();
+      initAuthForm();
+      document.getElementById('logout-btn').onclick = logout;
+      document.getElementById('show-create-chat-form-btn').onclick = () => {
+        const form = document.getElementById('create-chat-form');
+        form.style.display = form.style.display === 'flex' ? 'none' : 'flex';
+      };
+      document.getElementById('create-chat-form').onsubmit = createChat;
+      document.getElementById('message-form').addEventListener('submit', sendMessage);
+    });
+
+    function showAuth() {
+      document.getElementById('login-form').style.display = 'flex';
+      document.getElementById('sidebar').style.display = 'none';
+      document.getElementById('chat-window').style.display = 'none';
     }
 
-    function setupEventListeners() {
-      showRegisterBtn.addEventListener('click', () => {
-        loginFormContainer.style.display = 'none';
-        registerFormContainer.style.display = 'block';
-      });
-      showLoginBtn.addEventListener('click', () => {
-        registerFormContainer.style.display = 'none';
-        loginFormContainer.style.display = 'block';
-      });
-      loginForm.addEventListener('submit', handleLogin);
-      registerForm.addEventListener('submit', handleRegister);
-      logoutBtn.addEventListener('click', logout);
+    function showApp() {
+      document.getElementById('login-form').style.display = 'none';
+      document.getElementById('sidebar').style.display = 'flex';
+      document.getElementById('chat-window').style.display = 'flex';
+    }
 
-      newChatBtn.addEventListener('click', showNewChatModal);
-      closeModalBtn.addEventListener('click', hideNewChatModal);
-      newChatForm.addEventListener('submit', handleCreateChat);
-      messageForm.addEventListener('submit', handleSendMessage);
-
-      isGroupChat.addEventListener('change', function() {
-        if (this.checked) {
-          userSelectContainer.style.display = 'block';
-          userSelectSingle.style.display = 'none';
-        } else {
-          userSelectContainer.style.display = 'none';
-          userSelectSingle.style.display = 'block';
+    function initAuthForm() {
+      const emailField = document.getElementById('email');
+      const passwordField = document.getElementById('password');
+      const submitAuth = document.getElementById('submit-auth');
+      const toggleAuthMode = document.getElementById('toggle-auth-mode');
+      document.getElementById('toggle-auth-mode').onclick = () => {
+        authMode = authMode === 'login' ? 'register' : 'login';
+        document.getElementById('submit-auth').textContent = authMode === 'login' ? 'Войти' : 'Зарегистрироваться';
+        document.getElementById('toggle-auth-mode').textContent = authMode === 'login' ? 'Перейти к регистрации' : 'Перейти к входу';
+      };
+      document.getElementById('auth-form').onsubmit = async e => {
+        e.preventDefault();
+        const email = emailField.value;
+        const password = passwordField.value;
+        const url = authMode === 'login' ? '/login' : '/register';
+        const res = await fetch(apiBase + url, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({email, password})
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          alert(result.detail || 'Ошибка');
+          return;
         }
-      });
-    }
-
-    async function handleLogin(e) {
-      e.preventDefault();
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
-      try {
-        const res = await fetch(`${apiBase}/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        if (!res.ok) throw new Error('Не удалось войти');
-        const data = await res.json();
-        token = data.access_token;
-        localStorage.setItem(tokenKey, token);
-        await loadUserData();
-        showChatInterface();
-        loadChats();
-      } catch (err) {
-        alert(err.message);
-      }
-    }
-
-    async function handleRegister(e) {
-      e.preventDefault();
-      const name = document.getElementById('register-name').value;
-      const email = document.getElementById('register-email').value;
-      const password = document.getElementById('register-password').value;
-      try {
-        const res = await fetch(`${apiBase}/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password })
-        });
-        if (!res.ok) throw new Error('Не удалось зарегистрироваться');
-        // после регистрации логиним автоматически
-        const loginRes = await fetch(`${apiBase}/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        if (!loginRes.ok) throw new Error('Регистрация успешна, но не удалось войти');
-        const data = await loginRes.json();
-        token = data.access_token;
-        localStorage.setItem(tokenKey, token);
-        await loadUserData();
-        showChatInterface();
-        loadChats();
-      } catch (err) {
-        alert(err.message);
-      }
-    }
-
-    async function loadUserData() {
-      const res = await fetch(`${apiBase}/me`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error();
-      userData = await res.json();
-      currentUser = userData;
-      localStorage.setItem(userDataKey, JSON.stringify(userData));
-      userName.textContent = userData.name;
-    }
-
-    function logout() {
-      localStorage.removeItem(tokenKey);
-      localStorage.removeItem(userDataKey);
-      token = null;
-      currentUser = null;
-      if (socket) socket.close();
-      showAuthInterface();
-    }
-
-    function showAuthInterface() {
-      authContainer.style.display = 'flex';
-      chatContainer.style.display = 'none';
-    }
-
-    function showChatInterface() {
-      authContainer.style.display = 'none';
-      chatContainer.style.display = 'flex';
+        if (authMode === 'login') {
+          token = result.access_token;
+          localStorage.setItem('token', token);
+          showApp();
+          loadUser();
+          loadChats();
+        } else {
+          alert('Зарегистрированы. Теперь войдите.');
+          authMode = 'login';
+          submitAuth.textContent = 'Войти';
+          toggleAuthMode.textContent = 'Перейти к регистрации';
+        }
+      };
     }
 
     async function loadChats() {
-      try {
-        const res = await fetch(`${apiBase}/chats`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error();
-        chats = await res.json();
-        renderChatsList();
-      } catch {
-        alert('Не удалось загрузить чаты');
-      }
-    }
-
-    function renderChatsList() {
-      chatsList.innerHTML = '';
-      if (chats.length === 0) {
-        const empty = document.createElement('div');
-        empty.textContent = 'У вас пока нет чатов';
-        empty.style.padding = '15px';
-        chatsList.appendChild(empty);
-        return;
-      }
-      chats.forEach(chat => {
-        const item = document.createElement('div');
-        item.className = 'chat-item';
-        if (currentChat && currentChat.id === chat.id) item.classList.add('active');
-        const name = document.createElement('div');
-        name.className = 'chat-name';
-        name.textContent = chat.name;
-        const leave = document.createElement('div');
-        leave.className = 'leave-chat';
-        leave.innerHTML = '&times;';
-        leave.addEventListener('click', e => {
-          e.stopPropagation();
-          leaveChat(chat.id);
-        });
-        item.append(name, leave);
-        item.addEventListener('click', () => openChat(chat));
-        chatsList.appendChild(item);
+      const res = await fetch(apiBase + '/chats', {
+        headers: {'Authorization': 'Bearer ' + token}
       });
-    }
-
-    async function openChat(chat) {
-      if (currentChat && currentChat.id === chat.id) return;
-      if (socket) socket.close();
-      currentChat = chat;
-      currentChatName.textContent = chat.name;
-      document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
-      const idx = chats.findIndex(c => c.id === chat.id);
-      if (idx >= 0) document.querySelectorAll('.chat-item')[idx].classList.add('active');
-      welcomeScreen.style.display = 'none';
-      chatArea.style.display = 'flex';
-      messagesContainer.innerHTML = '';
-      connectWebSocket(chat.id);
-      await loadChatHistory(chat.id);
-    }
-
-    async function loadChatHistory(chatId) {
-      try {
-        const res = await fetch(`${apiBase}/history/${chatId}?limit=50&offset=0`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error();
-        const msgs = await res.json();
-        messagesContainer.innerHTML = '';
-        if (msgs.length === 0) {
-          const empty = document.createElement('div');
-          empty.className = 'welcome-message';
-          empty.textContent = 'Нет сообщений';
-          messagesContainer.appendChild(empty);
-          return;
-        }
-        msgs.forEach(msg => renderMessage(msg, false));
-        scrollToBottom();
-      } catch {
-        alert('Не удалось загрузить историю');
-      }
-    }
-
-    function connectWebSocket(chatId) {
-      if (!token) return;
-      const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/${chatId}?token=${token}`;
-      socket = new WebSocket(wsUrl);
-      socket.addEventListener('message', e => {
-        const data = JSON.parse(e.data);
-        if (data.type === 'message') {
-          if (seenClientIds.has(data.client_message_id)) {
-            updatePendingMessage(data);
-          } else {
-            renderMessage({
-              message_id: data.message_id,
-              sender_id: data.sender_id,
-              text: data.text,
-              timestamp: data.timestamp,
-              client_message_id: data.client_message_id
-            }, false);
-            if (data.sender_id !== currentUser.id) {
-              markMessageAsRead(data.message_id);
-            }
-          }
-        } else if (data.type === 'read') {
-          updateMessageReadStatus(data.message_id);
-        }
+      if (res.status === 401) { logout(); return; }
+      const chats = await res.json();
+      const list = document.getElementById('chat-list');
+      list.innerHTML = '';
+      chats.forEach(c => {
+        const li = document.createElement('li');
+        li.textContent = c.name;
+        li.onclick = () => openChat(c.id, c.name);
+        list.appendChild(li);
       });
-    }
-
-    function handleSendMessage(e) {
-      e.preventDefault();
-      if (!currentChat || !socket || socket.readyState !== WebSocket.OPEN) {
-        alert('Нет подключения к чату');
-        return;
-      }
-      const text = messageInput.value.trim();
-      if (!text) return;
-      const clientId = generateClientId();
-      // оптимистичное добавление
-      renderMessage({
-        sender_id: currentUser.id,
-        text,
-        timestamp: new Date().toISOString(),
-        client_message_id: clientId
-      }, true);
-      seenClientIds.add(clientId);
-      socket.send(JSON.stringify({ type: 'message', text, client_message_id: clientId }));
-      messageInput.value = '';
-    }
-
-    function generateClientId() {
-      return 'cid-' + Math.random().toString(36).substr(2, 9);
-    }
-
-    function renderMessage(message, pending) {
-      const msgDiv = document.createElement('div');
-      msgDiv.classList.add('message');
-      msgDiv.classList.add(message.sender_id === currentUser.id ? 'outgoing' : 'incoming');
-      if (pending) msgDiv.classList.add('pending');
-      if (message.client_message_id) msgDiv.dataset.clientMessageId = message.client_message_id;
-      if (message.message_id) msgDiv.dataset.messageId = message.message_id;
-
-      const senderDiv = document.createElement('div');
-      senderDiv.className = 'message-sender';
-      senderDiv.textContent = message.sender_id === currentUser.id ? 'Вы' : '';
-      const textDiv = document.createElement('div');
-      textDiv.className = 'message-text';
-      textDiv.textContent = message.text;
-      const timeDiv = document.createElement('div');
-      timeDiv.className = 'message-time';
-      timeDiv.textContent = new Date(message.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-
-      msgDiv.append(senderDiv, textDiv, timeDiv);
-      messagesContainer.appendChild(msgDiv);
-      scrollToBottom();
-    }
-
-    function updatePendingMessage(data) {
-      const el = document.querySelector(`.message[data-client-message-id="${data.client_message_id}"]`);
-      if (!el) return;
-      el.dataset.messageId = data.message_id;
-      el.classList.remove('pending');
-      if (data.is_read) el.classList.add('read');
-    }
-
-    function updateMessageReadStatus(messageId) {
-      const el = document.querySelector(`.message[data-message-id="${messageId}"]`);
-      if (el) el.classList.add('read');
-    }
-
-    function markMessageAsRead(messageId) {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'read', message_id: messageId }));
+      if (chats.length > 0) {
+        openChat(chats[0].id, chats[0].name);
       }
     }
 
-    function scrollToBottom() {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-
-    async function leaveChat(chatId) {
-      try {
-        await fetch(`${apiBase}/chats/${chatId}/leave`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        chats = chats.filter(c => c.id !== chatId);
-        if (currentChat && currentChat.id === chatId) {
-          currentChat = null;
-          chatArea.style.display = 'none';
-          welcomeScreen.style.display = 'flex';
-        }
-        renderChatsList();
-      } catch {
-        alert('Не удалось выйти из чата');
-      }
-    }
-
-    function showNewChatModal() {
-      loadUsers();
-      newChatModal.classList.add('show');
-    }
-
-    function hideNewChatModal() {
-      newChatModal.classList.remove('show');
-    }
-
-    async function loadUsers() {
-      try {
-        const res = await fetch(`${apiBase}/users`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error();
-        users = await res.json();
-        users = users.filter(u => u.id !== currentUser.id);
-        userSelect.innerHTML = '';
-        userSingle.innerHTML = '';
-        users.forEach(u => {
-          const opt = document.createElement('option');
-          opt.value = u.id; opt.textContent = u.name;
-          userSelect.append(opt);
-          const opt2 = opt.cloneNode(true);
-          userSingle.append(opt2);
-        });
-      } catch {
-        alert('Не удалось загрузить пользователей');
-      }
-    }
-
-    async function handleCreateChat(e) {
+    async function createChat(e) {
       e.preventDefault();
       const name = document.getElementById('chat-name').value.trim();
-      const group = isGroupChat.checked;
-      const selected = group
-        ? Array.from(userSelect.selectedOptions).map(o => o.value)
-        : [userSingle.value];
-      try {
-        const res = await fetch(`${apiBase}/chats`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            name,
-            is_group: group,
-            users: selected
-          })
-        });
-        if (!res.ok) throw new Error();
-        const newChat = await res.json();
-        chats.push(newChat);
-        renderChatsList();
-        hideNewChatModal();
-        openChat(newChat);
-      } catch {
-        alert('Не удалось создать чат');
+      const membersInput = document.getElementById('chat-members').value;
+      const memberIds = membersInput
+        .split(',')
+        .map(id => Number(id.trim()))
+        .filter(id => !isNaN(id));
+      const isGroup = document.getElementById('chat-is-group').checked;
+      const chat_type = isGroup ? 'group' : 'private';
+      if (!name || memberIds.length === 0) {
+        alert('Пожалуйста, заполните имя чата и ID участников');
+        return;
+      }
+      const res = await fetch(apiBase + '/chats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          name,
+          chat_type,
+          member_ids: memberIds
+        })
+      });
+      if (!res.ok) {
+        alert((await res.json()).detail || 'Ошибка создания');
+        return;
+      }
+      document.getElementById('create-chat-form').style.display = 'none';
+      loadChats();
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      location.reload();
+    }
+
+    async function openChat(id, name) {
+      currentChatId = id;
+      document.getElementById('chat-title').textContent = name;
+      if (ws) ws.close();
+      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${protocol}://${location.host}/ws/${id}?token=${token}`);
+      ws.onmessage = e => {
+        const d = JSON.parse(e.data);
+        if (d.type === 'message') {
+          addMessage(d.sender_id, d.text, d.timestamp);
+        }
+      };
+      const res = await fetch(apiBase + `/chats/${id}/messages`, {
+        headers: {'Authorization':'Bearer ' + token}
+      });
+      const msgs = await res.json();
+      const cont = document.getElementById('messages');
+      cont.innerHTML = '';
+      msgs.forEach(m => addMessage(m.sender_id, m.text, m.timestamp));
+    }
+
+    function addMessage(sender, text, ts) {
+      const div = document.createElement('div');
+      const time = new Date(ts).toLocaleTimeString();
+      div.textContent = `[${time}] ${sender}: ${text}`;
+      document.getElementById('messages').appendChild(div);
+      document.getElementById('messages').scrollTop = 1e9;
+    }
+
+    function sendMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('message-input');
+      if (ws && input.value) {
+        ws.send(JSON.stringify({type:'message', text: input.value}));
+        input.value = '';
       }
     }
   </script>

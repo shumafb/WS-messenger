@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -9,15 +11,20 @@ from sqlalchemy import (
     Table,
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
 
 from app.db import Base
-
 
 group_members = Table(
     "group_members",
     Base.metadata,
     Column("group_id", ForeignKey("groups.id"), primary_key=True),
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+)
+
+chat_users = Table(
+    "chat_users",
+    Base.metadata,
+    Column("chat_id", ForeignKey("chats.id"), primary_key=True),
     Column("user_id", ForeignKey("users.id"), primary_key=True),
 )
 
@@ -33,6 +40,11 @@ class User(Base):
     messages = relationship(
         "Message", back_populates="sender", cascade="all, delete-orphan"
     )
+    chats = relationship(
+        "Chat",
+        secondary=chat_users,
+        back_populates="members",
+    )
 
 
 class Chat(Base):
@@ -44,15 +56,23 @@ class Chat(Base):
     messages = relationship(
         "Message", back_populates="chat", cascade="all, delete-orphan"
     )
+    members = relationship(
+        "User",
+        secondary=chat_users,
+        back_populates="chats",
+    )
+    group = relationship("Group", back_populates="chat", uselist=False)
 
 
 class Group(Base):
     __tablename__ = "groups"
     id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(Integer, ForeignKey("chats.id"), nullable=False, index=True)
     name = Column(String)
     creator_id = Column(Integer, ForeignKey("users.id"))
 
     members = relationship("User", secondary=group_members, back_populates="groups")
+    chat = relationship("Chat", back_populates="group", uselist=False)
 
 
 class Message(Base):
