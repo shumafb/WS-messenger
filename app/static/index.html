@@ -596,14 +596,13 @@
       const email = document.getElementById('register-email').value;
       const password = document.getElementById('register-password').value;
       try {
-        const res = await fetch(`${apiBase}/register`, {
+        const res = await fetch(`${apiBase}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, password })
         });
         if (!res.ok) throw new Error('Не удалось зарегистрироваться');
-        // после регистрации логиним автоматически
-        const loginRes = await fetch(`${apiBase}/login`, {
+        const loginRes = await fetch(`${apiBase}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -621,7 +620,7 @@
     }
 
     async function loadUserData() {
-      const res = await fetch(`${apiBase}/me`, {
+      const res = await fetch(`${apiBase}/auth/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error();
@@ -709,20 +708,20 @@
 
     async function loadChatHistory(chatId) {
       try {
-        const res = await fetch(`${apiBase}/history/${chatId}?limit=50&offset=0`, {
+        const res = await fetch(`${apiBase}/chats/${chatId}/messages?limit=50&offset=0`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error();
-        const msgs = await res.json();
+        const data = await res.json();
         messagesContainer.innerHTML = '';
-        if (msgs.length === 0) {
+        if (data.items.length === 0) {
           const empty = document.createElement('div');
           empty.className = 'welcome-message';
           empty.textContent = 'Нет сообщений';
           messagesContainer.appendChild(empty);
           return;
         }
-        msgs.forEach(msg => renderMessage(msg, false));
+        data.items.forEach(msg => renderMessage(msg, false));
         scrollToBottom();
       } catch {
         alert('Не удалось загрузить историю');
@@ -740,18 +739,18 @@
             updatePendingMessage(data);
           } else {
             renderMessage({
-              message_id: data.message_id,
+              id: data.id,
+              chat_id: data.chat_id,
               sender_id: data.sender_id,
               text: data.text,
               timestamp: data.timestamp,
-              client_message_id: data.client_message_id
+              client_message_id: data.client_message_id,
+              created_at: data.timestamp
             }, false);
             if (data.sender_id !== currentUser.id) {
-              markMessageAsRead(data.message_id);
+              markMessageAsRead(data.id);
             }
           }
-        } else if (data.type === 'read') {
-          updateMessageReadStatus(data.message_id);
         }
       });
     }
@@ -881,8 +880,8 @@
       const name = document.getElementById('chat-name').value.trim();
       const group = isGroupChat.checked;
       const selected = group
-        ? Array.from(userSelect.selectedOptions).map(o => o.value)
-        : [userSingle.value];
+        ? Array.from(userSelect.selectedOptions).map(o => parseInt(o.value))
+        : [parseInt(userSingle.value)];
       try {
         const res = await fetch(`${apiBase}/chats`, {
           method: 'POST',
@@ -892,8 +891,8 @@
           },
           body: JSON.stringify({
             name,
-            is_group: group,
-            users: selected
+            chat_type: group ? 'group' : 'private',
+            member_ids: selected
           })
         });
         if (!res.ok) throw new Error();

@@ -3,20 +3,18 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.websockets import WebSocketDisconnect
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends, status
-from fastapi.security import OAuth2PasswordBearer
-from app.db import get_async_session
 
+from app.db import get_async_session
 from app.models.tables import User
 
 load_dotenv()
 
-# OAuth2 схема для HTTP аутентификации
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -44,14 +42,12 @@ def verify_jwt_token(token: str) -> Optional[dict]:
 
 async def get_current_user_ws(token: str, session: AsyncSession):
     try:
-        # Для отладки
         print(f"Пытаемся декодировать токен: {token}")
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         print(f"Декодированный payload: {payload}")
-        
+
         user_id = payload.get("user_id")
         if user_id is None:
-            # Попробуем получить пользователя по email
             email = payload.get("sub")
             if email:
                 stmt = select(User).where(User.email == email)

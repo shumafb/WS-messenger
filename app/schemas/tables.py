@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List
+from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -80,7 +80,7 @@ class MessageCreate(BaseModel):
         schema_extra = {
             "example": {
                 "text": "Привет",
-                "client_message_id": "e7b8f9a2-1c4d-4a3f-bd2c-1234567890ab"
+                "client_message_id": "e7b8f9a2-1c4d-4a3f-bd2c-1234567890ab",
             }
         }
 
@@ -92,6 +92,7 @@ class Message(MessageBase):
 
     class Config:
         from_attributes = True
+
 
 class MessageHistoryResponse(BaseModel):
     items: List[Message]

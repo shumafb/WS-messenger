@@ -1,25 +1,30 @@
 from typing import Dict, List, Tuple
+
 from fastapi import WebSocket
+
 
 class ConnectionManager:
     def __init__(self):
-        # active_connections: chat_id -> list of (websocket, user_id)
         self.active_connections: Dict[int, List[Tuple[WebSocket, int]]] = {}
 
     async def connect(self, chat_id: int, websocket: WebSocket, user_id: int) -> None:
         await websocket.accept()
         if chat_id not in self.active_connections:
             self.active_connections[chat_id] = []
-        
-        # Предотвращаем дублирование подключений
-        if not any(ws is websocket and uid == user_id 
-                  for ws, uid in self.active_connections[chat_id]):
+
+        if not any(
+            ws is websocket and uid == user_id
+            for ws, uid in self.active_connections[chat_id]
+        ):
             self.active_connections[chat_id].append((websocket, user_id))
 
-    async def disconnect(self, chat_id: int, websocket: WebSocket, user_id: int) -> None:
+    async def disconnect(
+        self, chat_id: int, websocket: WebSocket, user_id: int
+    ) -> None:
         if chat_id in self.active_connections:
             self.active_connections[chat_id] = [
-                (ws, uid) for ws, uid in self.active_connections[chat_id]
+                (ws, uid)
+                for ws, uid in self.active_connections[chat_id]
                 if not (ws is websocket and uid == user_id)
             ]
             if not self.active_connections[chat_id]:

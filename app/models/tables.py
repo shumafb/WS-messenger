@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -9,10 +11,8 @@ from sqlalchemy import (
     Table,
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
 
 from app.db import Base
-
 
 group_members = Table(
     "group_members",
@@ -21,7 +21,6 @@ group_members = Table(
     Column("user_id", ForeignKey("users.id"), primary_key=True),
 )
 
-# Ассоциация пользователей и чатов
 chat_users = Table(
     "chat_users",
     Base.metadata,
@@ -41,7 +40,6 @@ class User(Base):
     messages = relationship(
         "Message", back_populates="sender", cascade="all, delete-orphan"
     )
-    # Чаты, в которых участвует пользователь
     chats = relationship(
         "Chat",
         secondary=chat_users,
@@ -58,13 +56,11 @@ class Chat(Base):
     messages = relationship(
         "Message", back_populates="chat", cascade="all, delete-orphan"
     )
-    # Участники чата
     members = relationship(
         "User",
         secondary=chat_users,
         back_populates="chats",
     )
-    # Ссылка на связанную группу (если chat_type == 'group')
     group = relationship("Group", back_populates="chat", uselist=False)
 
 
@@ -76,7 +72,6 @@ class Group(Base):
     creator_id = Column(Integer, ForeignKey("users.id"))
 
     members = relationship("User", secondary=group_members, back_populates="groups")
-    # Ссылка на чат
     chat = relationship("Chat", back_populates="group", uselist=False)
 
 

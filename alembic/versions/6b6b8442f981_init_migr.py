@@ -21,8 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # Создание таблицы users
-    op.create_table(
+=    op.create_table(
         'users',
         sa.Column('id', sa.Integer(), primary_key=True, index=True),
         sa.Column('name', sa.String(), nullable=True),
@@ -30,7 +29,6 @@ def upgrade() -> None:
         sa.Column('password', sa.String()),
     )
 
-    # Создание таблицы chats
     op.create_table(
         'chats',
         sa.Column('id', sa.Integer(), primary_key=True, index=True),
@@ -38,7 +36,6 @@ def upgrade() -> None:
         sa.Column('chat_type', sa.Enum('private', 'group', name='chat_type'), server_default='private'),
     )
 
-    # Создание таблицы groups
     op.create_table(
         'groups',
         sa.Column('id', sa.Integer(), primary_key=True, index=True),
@@ -47,7 +44,6 @@ def upgrade() -> None:
         sa.Column('creator_id', sa.Integer(), sa.ForeignKey('users.id')),
     )
 
-    # Создание таблицы messages
     op.create_table(
         'messages',
         sa.Column('id', sa.Integer(), primary_key=True, index=True),
@@ -60,14 +56,12 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
     )
 
-    # Создание таблицы group_members (many-to-many)
     op.create_table(
         'group_members',
         sa.Column('group_id', sa.Integer(), sa.ForeignKey('groups.id'), primary_key=True),
         sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id'), primary_key=True),
     )
 
-    # Создание таблицы chat_users (many-to-many)
     op.create_table(
         'chat_users',
         sa.Column('chat_id', sa.Integer(), sa.ForeignKey('chats.id'), primary_key=True),
@@ -77,7 +71,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
-    # Удаление таблиц в обратном порядке (чтобы не нарушить зависимости)
     op.drop_table('chat_users')
     op.drop_table('group_members')
     op.drop_table('messages')
