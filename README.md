@@ -8,8 +8,8 @@
 
 1. Клонируйте репозиторий:
 ```bash
-git clone <repository-url>
-cd tz_mango_API
+git clone https://github.com/shumafb/WS-messenger.git
+cd WS-messanger
 ```
 
 2. Запустите проект через Docker Compose:
