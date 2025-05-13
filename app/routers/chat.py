@@ -30,6 +30,7 @@ from app.schemas.tables import (
 )
 from app.service.connection_manager import ConnectionManager
 from app.utils.jwt import get_current_user, get_current_user_ws
+from json import JSONDecodeError
 
 router = APIRouter(tags=["chat"])
 manager = ConnectionManager()
@@ -42,11 +43,14 @@ async def websocket_endpoint(
     token: str = Query(...),
     session: AsyncSession = Depends(get_async_session),
 ):
-    current_user = await get_current_user_ws(token)
+    current_user = await get_current_user_ws(token, session)
     await manager.connect(chat_id, websocket, current_user.id)
     try:
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await websocket.receive_json()
+            except JSONDecodeError:
+                continue
             event_type = data.get("type")
             if event_type == "message":
                 client_msg_id = data.get("client_message_id")
@@ -58,13 +62,13 @@ async def websocket_endpoint(
                     timestamp=datetime.utcnow(),
                     client_message_id=str(uuid.uuid4()),
                 )
+                session.add(msg)
                 try:
-                    async with session.begin():
-                        session.add(msg)
-                        await session.flush()
-                    await session.refresh(msg)
+                    await session.commit()
                 except IntegrityError:
+                    await session.rollback()
                     continue
+                await session.refresh(msg)
                 payload = {
                     "type": "message",
                     "id": msg.id,
@@ -79,17 +83,17 @@ async def websocket_endpoint(
                 result = await session.execute(select(Message).filter_by(id=msg_id))
                 msg = result.scalar_one_or_none()
                 if msg and not msg.is_read:
+                    msg.is_read = True
                     try:
-                        async with session.begin():
-                            msg.is_read = True
+                        await session.commit()
                     except IntegrityError:
-                        pass
+                        await session.rollback()
                     payload = {
                         "type": "read",
                         "message_id": msg_id,
                         "reader_id": current_user.id,
                     }
-                    await manager.send_personal_message(msg.sender_id, payload)
+                    await manager.send_personal_message(chat_id, msg.sender_id, payload)
     except WebSocketDisconnect:
         manager.disconnect(chat_id, websocket)
 
