@@ -1,90 +1,235 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, delete
+from typing import List, Optional
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, HTTPException
+from sqlalchemy import select, insert, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
+from app.db import get_async_session
+from app.models.tables import Message, Chat, User, Group, chat_users, group_members
+from app.service.connection_manager import ConnectionManager
+from app.utils.jwt import get_current_user_ws, get_current_user
+from datetime import datetime
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
+from app.schemas.tables import (
+    Message as MessageSchema,
+    Chat as ChatSchema,
+    ChatCreate,
+    MessageCreate,
+    MessageHistoryResponse,
+)
+import uuid
 
-from ..models.tables import Chat, User
-from ..dependencies import get_async_session, get_current_user
-from ..schemas.tables import Chat as ChatRead 
+router = APIRouter(tags=["chat"])
+manager = ConnectionManager()
 
-router = APIRouter(prefix="/chats", tags=["chats"])
+@router.websocket("/ws/{chat_id}")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    chat_id: int,
+    token: str = Query(...),
+    session: AsyncSession = Depends(get_async_session),
+):
+    # Аутентификация пользователя
+    current_user = await get_current_user_ws(token)
+    await manager.connect(chat_id, websocket, current_user.id)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            event_type = data.get("type")
+            if event_type == "message":
+                client_msg_id = data.get("client_message_id")
+                text = data.get("text")
+                # Сохранение сообщения и предотвращение дубликатов
+                msg = Message(
+                    chat_id=chat_id,
+                    sender_id=current_user.id,
+                    text=text,
+                    timestamp=datetime.utcnow(),
+                    client_message_id=str(uuid.uuid4()),
+                )
+                try:
+                    # Транзакция: добавление и flush для получения ID
+                    async with session.begin():
+                        session.add(msg)
+                        await session.flush()
+                    # Обновляем объект после commit
+                    await session.refresh(msg)
+                except IntegrityError:
+                    # Дубликат сообщения — пропустить
+                    continue
+                # Рассылка нового сообщения всем участникам чата
+                payload = {
+                    "type": "message",
+                    "id": msg.id,
+                    "chat_id": chat_id,
+                    "sender_id": current_user.id,
+                    "text": text,
+                    "timestamp": msg.timestamp.isoformat(),
+                }
+                await manager.broadcast(chat_id, payload)
+            elif event_type == "read":
+                msg_id = data.get("message_id")
+                result = await session.execute(select(Message).filter_by(id=msg_id))
+                msg = result.scalar_one_or_none()
+                if msg and not msg.is_read:
+                    try:
+                        async with session.begin():
+                            msg.is_read = True
+                    except IntegrityError:
+                        # Если конфликт — пропустить
+                        pass
+                    # Уведомление отправителя о прочтении
+                    payload = {"type": "read", "message_id": msg_id, "reader_id": current_user.id}
+                    await manager.send_personal_message(msg.sender_id, payload)
+    except WebSocketDisconnect:
+        manager.disconnect(chat_id, websocket)
 
-class ChatCreate(BaseModel):
-    name: str
-    is_group: bool = True
-    user_ids: List[int]
-
-class ParticipantsUpdate(BaseModel):
-    user_ids: List[int]
-
-@router.post("/", response_model=ChatRead, status_code=status.HTTP_201_CREATED)
+@router.post("/chats", response_model=ChatSchema)
 async def create_chat(
     data: ChatCreate,
-    db: AsyncSession = Depends(get_async_session),
-    current_user=Depends(get_current_user)
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
 ):
-    # Создаём чат (групповой или личный)
-    chat = Chat(name=data.name if data.is_group else None, is_group=data.is_group)
-    db.add(chat)
-    await db.flush()  # получить chat.id
-
-    # Собираем участников: текущий пользователь + указанные
-    user_set = set(data.user_ids) | {current_user.id}
-    for uid in user_set:
-        db.add(User(chat_id=chat.id, user_id=uid))
-
-    await db.commit()
-    await db.refresh(chat)
-    return ChatRead.from_orm(chat)
-
-@router.post("/{chat_id}/participants", status_code=status.HTTP_204_NO_CONTENT)
-async def add_participants(
-    chat_id: int,
-    data: ParticipantsUpdate,
-    db: AsyncSession = Depends(get_async_session),
-    current_user=Depends(get_current_user)
-):
-    # Проверка: чат существует и текущий пользователь - участник
-    chat = await db.get(Chat, chat_id)
-    if not chat or not chat.is_group:
-        raise HTTPException(status_code=404, detail="Групповой чат не найден")
-
-    result = await db.execute(
-        select(User).where(User.chat_id == chat_id, User.user_id == current_user.id)
-    )
-    if not result.scalars().first():
-        raise HTTPException(status_code=403, detail="Нет доступа к чату")
-
-    # Добавляем новых участников
-    for uid in set(data.user_ids):
-        exists = await db.execute(
-            select(User).where(User.chat_id == chat_id, User.user_id == uid)
+    
+    if data.chat_type == "private":
+        if len(data.member_ids) != 1:
+            raise HTTPException(
+                status_code=400,
+                detail="При создании приватного чата можно указать только одного участника",
+            )
+        if current_user.id in data.member_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="Нельзя создать приватный чат с самим собой",
+            )
+        
+        # Проверяем существование приватного чата между пользователями
+        existing_chat = await session.execute(
+            select(Chat)
+            .join(chat_users, Chat.id == chat_users.c.chat_id)
+            .where(
+                Chat.chat_type == "private",
+                chat_users.c.user_id.in_([current_user.id, data.member_ids[0]])
+            )
+            .group_by(Chat.id)
+            .having(func.count(chat_users.c.user_id) == 2)
         )
-        if not exists.scalars().first():
-            db.add(User(chat_id=chat_id, user_id=uid))
-    await db.commit()
+        if existing_chat.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail="Приватный чат между этими пользователями уже существует",
+            )
+    # Создание приватного или группового чата
+    chat = Chat(
+        name=data.name,
+        chat_type=data.chat_type,
+    )
+    # Добавляем чат и участников
+    session.add(chat)
+    # Сразу flush, чтобы получить chat.id
+    await session.flush()
 
-@router.delete("/{chat_id}/participants/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_participant(
-    chat_id: int,
-    user_id: int,
-    db: AsyncSession = Depends(get_async_session),
-    current_user=Depends(get_current_user)
+    # Формируем уникальный список участников (включая создателя)
+    unique_ids = set(data.member_ids + [current_user.id])
+    # Вставляем записи в таблицу chat_users
+    if unique_ids:
+        rows = [{"chat_id": chat.id, "user_id": uid} for uid in unique_ids]
+        await session.execute(insert(chat_users), rows)
+
+    if data.chat_type == "group":
+        # Создаём запись в таблице Group и назначаем тех же участников
+        group = Group(chat_id=chat.id, name=data.name, creator_id=current_user.id)
+        session.add(group)
+        await session.flush()
+        # Вставляем записи в таблицу group_members
+        if unique_ids:
+            rows = [{"group_id": group.id, "user_id": uid} for uid in unique_ids]
+            await session.execute(insert(group_members), rows)
+
+    await session.commit()
+    # Ре-запрос чата вместе с участниками
+    result = await session.execute(
+        select(Chat).options(selectinload(Chat.members)).filter_by(id=chat.id)
+    )
+    chat_with_members = result.scalar_one()
+    return chat_with_members
+
+@router.get("/chats", response_model=List[ChatSchema])
+async def list_chats(
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
 ):
-    # Проверка: чат существует и текущий пользователь - участник
-    chat = await db.get(Chat, chat_id)
-    if not chat or not chat.is_group:
-        raise HTTPException(status_code=404, detail="Групповой чат не найден")
+    q = select(Chat).join(chat_users).filter(chat_users.c.user_id == current_user.id)
+    result = await session.execute(q)
+    return result.scalars().all()
 
-    result = await db.execute(
-        select(User).where(User.chat_id == chat_id, User.user_id == current_user.id)
-    )
-    if not result.scalars().first():
-        raise HTTPException(status_code=403, detail="Нет доступа к чату")
+@router.get("/chats/{chat_id}/messages", response_model=List[MessageSchema])
+async def get_history(
+    chat_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
+):
+    q = select(Message).filter_by(chat_id=chat_id).order_by(Message.timestamp)
+    result = await session.execute(q)
+    return result.scalars().all()
 
-    # Удаляем участника
-    await db.execute(
-        delete(User).where(User.chat_id == chat_id, User.user_id == user_id)
+@router.post("/chats/{chat_id}/messages", response_model=MessageSchema)
+async def send_message_http(
+    chat_id: int,
+    data: MessageCreate,
+    session: AsyncSession = Depends(get_async_session),
+    current_user=Depends(get_current_user),
+):
+    msg = Message(
+        chat_id=chat_id,
+        sender_id=current_user.id,
+        text=data.text,
+        timestamp=datetime.utcnow(),
+        client_message_id=str(uuid.uuid4()),
     )
-    await db.commit()
+    session.add(msg)
+    await session.commit()
+    await session.refresh(msg)
+    return msg
+
+@router.get("/history/{chat_id}", response_model=MessageHistoryResponse)
+async def get_message_history(
+    chat_id: int,
+    limit: int = Query(default=50, ge=1, le=100, description="Количество сообщений на странице"),
+    offset: int = Query(default=0, ge=0, description="Смещение от начала"),
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user),
+):
+    # Проверяем, есть ли у пользователя доступ к чату
+    chat_member = await session.execute(
+        select(chat_users).where(
+            chat_users.c.chat_id == chat_id,
+            chat_users.c.user_id == current_user.id
+        )
+    )
+    if not chat_member.first():
+        raise HTTPException(
+            status_code=403,
+            detail="У вас нет доступа к этому чату"
+        )
+
+    # Получаем общее количество сообщений в чате
+    total_count = await session.execute(
+        select(func.count(Message.id)).filter(Message.chat_id == chat_id)
+    )
+    total = total_count.scalar()
+
+    # Получаем сообщения с пагинацией
+    messages = await session.execute(
+        select(Message)
+        .filter(Message.chat_id == chat_id)
+        .order_by(Message.timestamp.asc())  # сортировка по возрастанию времени
+        .offset(offset)
+        .limit(limit)
+    )
+    
+    return MessageHistoryResponse(
+        items=messages.scalars().all(),
+        total=total,
+        offset=offset,
+        limit=limit
+    )

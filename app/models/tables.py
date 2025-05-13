@@ -21,6 +21,14 @@ group_members = Table(
     Column("user_id", ForeignKey("users.id"), primary_key=True),
 )
 
+# Ассоциация пользователей и чатов
+chat_users = Table(
+    "chat_users",
+    Base.metadata,
+    Column("chat_id", ForeignKey("chats.id"), primary_key=True),
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+)
+
 
 class User(Base):
     __tablename__ = "users"
@@ -33,6 +41,12 @@ class User(Base):
     messages = relationship(
         "Message", back_populates="sender", cascade="all, delete-orphan"
     )
+    # Чаты, в которых участвует пользователь
+    chats = relationship(
+        "Chat",
+        secondary=chat_users,
+        back_populates="members",
+    )
 
 
 class Chat(Base):
@@ -44,15 +58,26 @@ class Chat(Base):
     messages = relationship(
         "Message", back_populates="chat", cascade="all, delete-orphan"
     )
+    # Участники чата
+    members = relationship(
+        "User",
+        secondary=chat_users,
+        back_populates="chats",
+    )
+    # Ссылка на связанную группу (если chat_type == 'group')
+    group = relationship("Group", back_populates="chat", uselist=False)
 
 
 class Group(Base):
     __tablename__ = "groups"
     id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(Integer, ForeignKey("chats.id"), nullable=False, index=True)
     name = Column(String)
     creator_id = Column(Integer, ForeignKey("users.id"))
 
     members = relationship("User", secondary=group_members, back_populates="groups")
+    # Ссылка на чат
+    chat = relationship("Chat", back_populates="group", uselist=False)
 
 
 class Message(Base):

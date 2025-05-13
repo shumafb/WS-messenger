@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -34,12 +34,12 @@ class User(UserBase):
 
 
 class ChatBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=50)
+    name: str = Field(None, min_length=1, max_length=50)
     chat_type: ChatType = Field(default=ChatType.PRIVATE)
 
 
 class ChatCreate(ChatBase):
-    pass
+    member_ids: List[int]
 
 
 class Chat(ChatBase):
@@ -72,14 +72,32 @@ class MessageBase(BaseModel):
     client_message_id: Optional[str] = None
 
 
-class MessageCreate(MessageBase):
-    sender_id: int
+class MessageCreate(BaseModel):
+    text: str
+    client_message_id: Optional[str] = None
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "text": "Привет",
+                "client_message_id": "e7b8f9a2-1c4d-4a3f-bd2c-1234567890ab"
+            }
+        }
 
 
 class Message(MessageBase):
     id: int
     sender_id: int
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class MessageHistoryResponse(BaseModel):
+    items: List[Message]
+    total: int
+    offset: int
+    limit: int
 
     class Config:
         from_attributes = True

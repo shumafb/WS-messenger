@@ -10,8 +10,10 @@ class ConnectionManager:
         await websocket.accept()
         if chat_id not in self.active_connections:
             self.active_connections[chat_id] = []
-
-        if not any(ws is websocket and uid == user_id for ws, uid in self.active_connections[chat_id]):
+        
+        # Предотвращаем дублирование подключений
+        if not any(ws is websocket and uid == user_id 
+                  for ws, uid in self.active_connections[chat_id]):
             self.active_connections[chat_id].append((websocket, user_id))
 
     async def disconnect(self, chat_id: int, websocket: WebSocket, user_id: int) -> None:
@@ -31,7 +33,9 @@ class ConnectionManager:
                 except Exception:
                     await self.disconnect(chat_id, websocket, _)
 
-    async def send_personal_message(self, chat_id: int, user_id: int, message: dict) -> None:
+    async def send_personal_message(
+        self, chat_id: int, user_id: int, message: dict
+    ) -> None:
         if chat_id in self.active_connections:
             for websocket, uid in self.active_connections[chat_id]:
                 if uid == user_id:

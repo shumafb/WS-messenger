@@ -8,10 +8,16 @@ from fastapi.websockets import WebSocketDisconnect
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends, status
+from fastapi.security import OAuth2PasswordBearer
+from app.db import get_async_session
 
 from app.models.tables import User
 
 load_dotenv()
+
+# OAuth2 схема для HTTP аутентификации
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
@@ -61,4 +67,29 @@ async def get_current_user_ws(token: str, session: AsyncSession):
     user = await session.get(User, user_id)
     if not user:
         raise WebSocketDisconnect(code=1008)
+    return user
+
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    session: AsyncSession = Depends(get_async_session),
+):
+    payload = verify_jwt_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+        )
+    user_id = payload.get("user_id")
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        )
+    user = await session.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
     return user
