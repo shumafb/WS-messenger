@@ -30,7 +30,13 @@ from app.schemas.tables import (
 )
 from app.service.connection_manager import ConnectionManager
 from app.utils.jwt import get_current_user, get_current_user_ws
-from json import JSONDecodeError
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("chat")
 
 router = APIRouter(tags=["chat"])
 manager = ConnectionManager()
@@ -44,17 +50,20 @@ async def websocket_endpoint(
     session: AsyncSession = Depends(get_async_session),
 ):
     current_user = await get_current_user_ws(token, session)
+    logger.info(f"Пользователь {current_user.id} подключился к чату {chat_id} (WS)")
     await manager.connect(chat_id, websocket, current_user.id)
     try:
         while True:
             try:
                 data = await websocket.receive_json()
+                logger.debug(f"WS получены данные от пользователя {current_user.id}: {data}")
             except JSONDecodeError:
                 continue
             event_type = data.get("type")
             if event_type == "message":
                 client_msg_id = data.get("client_message_id")
                 text = data.get("text")
+                logger.info(f"Пользователь {current_user.id} отправляет сообщение в чат {chat_id}: {text}")
                 msg = Message(
                     chat_id=chat_id,
                     sender_id=current_user.id,
@@ -78,11 +87,13 @@ async def websocket_endpoint(
                     "timestamp": msg.timestamp.isoformat(),
                 }
                 await manager.broadcast(chat_id, payload)
+                logger.info(f"Сообщение отправлено всем в чате {chat_id}: id {msg.id}")
             elif event_type == "read":
                 msg_id = data.get("message_id")
                 result = await session.execute(select(Message).filter_by(id=msg_id))
                 msg = result.scalar_one_or_none()
                 if msg and not msg.is_read:
+                    logger.info(f"Пользователь {current_user.id} отметил сообщение {msg_id} как прочитанное в чате {chat_id}")
                     msg.is_read = True
                     try:
                         await session.commit()
@@ -96,6 +107,7 @@ async def websocket_endpoint(
                     await manager.send_personal_message(chat_id, msg.sender_id, payload)
     except WebSocketDisconnect:
         manager.disconnect(chat_id, websocket)
+        logger.info(f"Пользователь {current_user.id} отключился от чата {chat_id} (WS)")
 
 
 @router.post("/chats", response_model=ChatSchema)
@@ -104,6 +116,7 @@ async def create_chat(
     session: AsyncSession = Depends(get_async_session),
     current_user=Depends(get_current_user),
 ):
+    logger.info(f"Запрос на создание чата от пользователя {current_user.id}: тип={data.chat_type}, название={data.name}, участники={data.member_ids}")
     if data.chat_type == "private":
         if len(data.member_ids) != 1:
             raise HTTPException(
@@ -164,6 +177,7 @@ async def list_chats(
     session: AsyncSession = Depends(get_async_session),
     current_user=Depends(get_current_user),
 ):
+    logger.info(f"Запрос списка чатов для пользователя {current_user.id}")
     q = select(Chat).join(chat_users).filter(chat_users.c.user_id == current_user.id)
     result = await session.execute(q)
     return result.scalars().all()
@@ -175,6 +189,7 @@ async def get_history(
     session: AsyncSession = Depends(get_async_session),
     current_user=Depends(get_current_user),
 ):
+    logger.info(f"Получение истории чата {chat_id} пользователем {current_user.id}")
     q = select(Message).filter_by(chat_id=chat_id).order_by(Message.timestamp)
     result = await session.execute(q)
     return result.scalars().all()
@@ -187,6 +202,7 @@ async def send_message_http(
     session: AsyncSession = Depends(get_async_session),
     current_user=Depends(get_current_user),
 ):
+    logger.info(f"HTTP: отправка сообщения пользователем {current_user.id} в чат {chat_id}: {data.text}")
     msg = Message(
         chat_id=chat_id,
         sender_id=current_user.id,
@@ -210,6 +226,7 @@ async def get_message_history(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user),
 ):
+    logger.info(f"HTTP: получение истории сообщений чата {chat_id}, смещение={offset}, лимит={limit}, пользователь={current_user.id}")
     chat_member = await session.execute(
         select(chat_users).where(
             chat_users.c.chat_id == chat_id, chat_users.c.user_id == current_user.id
